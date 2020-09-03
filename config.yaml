@@ -1,0 +1,28 @@
+# Graph parameters
+network: ws
+population_size: 500
+num_runs: 2
+load_pickle: True
+
+# WS model parameters
+ws:
+  neighbours: 4
+  rewire_p: 0.1
+
+
+# SIRD model parameters
+horizon: 300
+infection_rate: 0.8
+recovery_rate: 0.1
+death_rate: 0.05
+vaccination_rate: 0
+
+init_state:
+  I: 1
+  R: 0
+  D: 0
+
+# paths
+dir:
+  pickle: 'pickle/'
+  img: 'img/'
