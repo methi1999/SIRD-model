@@ -2,6 +2,7 @@ import yaml
 import pickle
 import random
 import os
+from timeit import default_timer as timer
 
 import numpy as np
 from matplotlib.lines import Line2D
@@ -14,19 +15,19 @@ np.random.seed(42)
 random.seed(42)
 
 
-def SIRD_graph(G, config):
+def SIRD_graph(graph_obj, config):
     """
     Simulates a SIRD model on the input graph
     Parameters
     ----------
-    G: Input networkX graph object
+    graph_obj: Input networkX graph object
     config: config file
 
     Returns a TXN matrix where element (i, j) is the state of node j at time step i
     -------
     """
 
-    N = len(G.nodes)
+    N = len(graph_obj.nodes)
     T = config['horizon']
     beta, gamma, delta, epsilon = config['infection_rate'], config['recovery_rate'], config['death_rate'], config[
         'vaccination_rate']
@@ -52,23 +53,22 @@ def SIRD_graph(G, config):
     category_array[shuffled_nodes[I0:I0 + R0]] = 2
     category_array[shuffled_nodes[I0 + R0:I0 + R0 + D0]] = 3
 
-    # state array [i] holds number of individuals in each category after time step i
+    # state array [i][j] = category of node j after time step i
     state_array = np.zeros((T + 1, N))
     state_array[0] = np.copy(category_array)
 
     for t in range(1, T + 1):
-        if t % (T // 10) == 0:
+        if t % (T // 3) == 0:
             print('Time step:', t, '/', T)
 
         cur_categories = np.copy(state_array[t - 1])
 
-        for node in G.nodes:
+        for node in graph_obj.nodes:
             # initialise new state with old state
             new_state = cur_categories[node]
 
-            neighbours = G.adj[node]
-            s_neighbours, i_neighbours = np.sum(cur_categories[neighbours] == 0), np.sum(
-                cur_categories[neighbours] == 1)
+            neighbours = graph_obj.adj[node]
+            i_neighbours = np.sum(cur_categories[neighbours] == 1)
 
             if cur_categories[node] == 0:  # susceptible
                 # S can either recover after vaccination or become infected
@@ -83,7 +83,7 @@ def SIRD_graph(G, config):
                 next_possible_probs = [gamma, delta, 1 - gamma - delta]
                 new_state = np.random.choice(a=next_possible_states, size=1, p=next_possible_probs)
 
-            # else do nothing. Recovered and deaths wont change            
+            # else do nothing. Recovered and dead wont change
 
             # assign new state to current time vector
             cur_categories[node] = new_state
@@ -113,8 +113,8 @@ def simulate_and_simple_plot(config):
     # load pickle
     load_previous = config['load_pickle']
     sim_name = 'simple_run_' + str(num_runs)
-    pkl_path = os.path.join(config['dir']['pickle'], sim_name  + '.pkl')
-    img_path = os.path.join(config['dir']['img'], sim_name  + '.png')
+    pkl_path = os.path.join(config['dir']['pickle'], sim_name + '.pkl')
+    img_path = os.path.join(config['dir']['img'], sim_name + '.png')
     found_previous = False
 
     if load_previous and os.path.exists(pkl_path):
@@ -138,10 +138,10 @@ def simulate_and_simple_plot(config):
     plot_simple_evolution(config, states, plot_average=True, save_pth=img_path)
 
     # animate graph
-    # graph_animate(config, G, states[0])
+    # graph_animate(config, graph_obj, states[0])
 
 
-def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_list):
+def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_list: list):
     """
     Plots simulation curves on the same plot so that values can be compared
     Parameters
@@ -154,9 +154,13 @@ def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_l
 
     Returns nothing. Plots final simulation results as a function of time
     """
-    # define graph
-    N, k, rewire_p = config['population_size'], config['ws']['neighbours'], config['ws']['rewire_p']
-    G = ws_graph(N, k, rewire_p)
+    # detect typos
+    assert parameter_name in config.keys()
+
+    # define graph if parameters are not to be varied
+    if parameter_name != 'population_size':
+        N, k, rewire_p = config['population_size'], config['ws']['neighbours'], config['ws']['rewire_p']
+        G = ws_graph(N, k, rewire_p)
 
     config_list = []
     for v in parameter_values:
@@ -165,6 +169,7 @@ def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_l
         config_list.append(config_copy)
 
     assert len(marker_list) == len(config_list)
+    # print(config_list)
 
     # generating the title
     N = config['population_size']
@@ -175,7 +180,8 @@ def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_l
     I0, R0, D0 = config['init_state']['I'], config['init_state']['R'], config['init_state']['D']
     S0 = N - I0 - R0 - D0
 
-    title = "N = {}, infection_r = {}, recovery_r = {}, death_r = {}, vaccine_r = {}\n".format(N, beta, gamma, delta, epsilon)
+    title = "N = {}, infection_r = {}, recovery_r = {}, death_r = {}, vaccine_r = {}\n".format(N, beta, gamma, delta,
+                                                                                               epsilon)
     title += "# runs = {}, S0 = {}, I0 = {}, R0 = {}, D0 = {}\n".format(num_runs, S0, I0, R0, D0)
     title += 'Varying ' + parameter_name + " - "
 
@@ -200,19 +206,28 @@ def simulate_and_compare_plot(config, parameter_name, parameter_values, marker_l
     if not found_previous:
         state_list = []
         for cur_c in config_list:
+            print("Setting parameter {} to {}".format(parameter_name, cur_c[parameter_name]))
+
+            if parameter_name == 'population_size':
+                N, k, rewire_p = cur_c['population_size'], cur_c['ws']['neighbours'], cur_c['ws']['rewire_p']
+                G = ws_graph(N, k, rewire_p)
+
             runs = []
+            start = timer()
             for i in range(num_runs):
                 print("Simulation Num:", i + 1, '/', num_runs)
                 runs.append(SIRD_graph(G, cur_c))
+            end = timer()
+            print((end-start)/num_runs)
             state_list.append(np.array(runs))
         # dump pickle
         pickle.dump((state_list, config_list), open(pkl_path, 'wb'))
 
     # plot
-    # plot_compare_evolution(state_list, marker_list, config_list, title, plot_average=True, save_pth=img_path)
+    plot_compare_evolution(state_list, marker_list, config_list, title, plot_average=True, save_pth=img_path)
 
     # animate graph
-    graph_animate(config, G, state_list[0][0], save_pth=img_path[:-3]+'gif')
+    # graph_animate(config, G, state_list[0][0], save_pth=img_path[:-3]+'gif')
 
 
 if __name__ == '__main__':
@@ -223,7 +238,10 @@ if __name__ == '__main__':
     # simulate_and_simple_plot(config)
 
     # compare
-    simulate_and_compare_plot(config, 'vaccination_rate', [0.0001, 0.01], ['x', 'o'])
+    # simulate_and_compare_plot(config, 'infection_rate', [0.5, 0.6, 0.7], ['x', 'o', 'v'])
+    # simulate_and_compare_plot(config, 'recovery_rate', [0.1, 0.15, 0.2], ['x', 'o', 'v'])
+    # simulate_and_compare_plot(config, 'vaccination_rate', [0, 0.0001, 0.0005], ['x', 'o', 'v'])
+    simulate_and_compare_plot(config, 'population_size', [200, 500, 1000, 5000], ['x', 'o', 's', 'v'])
 
 # def SIRD_non_graph(config):
 #     from scipy.integrate import odeint

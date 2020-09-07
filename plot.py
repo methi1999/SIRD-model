@@ -105,7 +105,7 @@ def plot_compare_evolution(state_list, marker_list, config_list, title, plot_ave
         # time grid
         t = list(range(states.shape[1]))
         # marker spacing
-        total_marks = 10
+        total_marks = 20
         marker_spacing = S.shape[1] // total_marks
 
         if plot_average:
@@ -123,13 +123,14 @@ def plot_compare_evolution(state_list, marker_list, config_list, title, plot_ave
 
     ax.set_xlabel('Time step')
     ax.set_ylabel('Fraction')
+    ax.set_yscale('log')
 
     plt.title(title)
 
     lines, labels = get_legend()
     ax.legend(lines, labels)
 
-    ax.set_ylim(0, 1.2)
+    # ax.set_ylim(0, 1.2)
     ax.yaxis.set_tick_params(length=0)
     ax.xaxis.set_tick_params(length=0)
     ax.grid(b=True, which='major', c='w', lw=2, ls='-')
@@ -196,3 +197,12 @@ def get_legend():
     labels = ['Susceptible', 'Infected', 'Recovered with immunity', 'Deaths']
 
     return lines, labels
+
+
+def something_vs_simtime(parameter_name, parameter_values, sim_times):
+    plt.plot(parameter_values, sim_times, marker='x')
+    plt.xlabel(parameter_name)
+    plt.ylabel("Average simulation time per run in seconds")
+    plt.title("{} vs Simulation time".format(parameter_name))
+    plt.grid()
+    plt.show()
