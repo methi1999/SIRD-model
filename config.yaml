@@ -1,7 +1,7 @@
 # Graph parameters
 network: ws
 population_size: 500
-num_runs: 15
+num_runs: 1
 load_pickle: True
 
 # WS model parameters
@@ -12,15 +12,17 @@ ws:
 
 # SIRD model parameters
 horizon: 200
-infection_rate: 0.7
+infection_rate: 0.95
+reinfection_rate: 0.0001
 recovery_rate: 0.1
 death_rate: 0.01
-vaccination_rate: 0
+vaccination_rate: 0.001
 
 init_state:
   I: 1
   R: 0
   D: 0
+  V: 0
 
 # paths
 dir:
