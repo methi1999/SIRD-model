@@ -2,7 +2,7 @@
 
 This repo contains code which was used for simulating a SIR/SIRD model, as part of my SRE (research project) under [Prof. Sharayu Moharir](https://sites.google.com/site/sharayumoharir/).
 
-Please consult the [report](https://methi1999.github.io/assets/sre.pdf) for more details.
+Please consult the [report](https://methi1999.github.io/assets/sre_sird.pdf) for more details.
 
 # Directory Structure
 
